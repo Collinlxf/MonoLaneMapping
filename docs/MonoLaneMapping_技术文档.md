@@ -2971,6 +2971,320 @@ target_link_libraries(lane_mapping
 
 ---
 
+## 12. 本地运行指南（Docker/Conda）
+
+本节提供两种隔离环境的运行方案，不影响本地系统环境。
+
+### 12.1 方案对比
+
+| 对比项 | Docker方案 | Conda方案 |
+|--------|------------|-----------|
+| **隔离程度** | 完全隔离（包括ROS） | Python环境隔离 |
+| **磁盘占用** | ~5-8GB | ~2-3GB |
+| **配置难度** | 中等（需写Dockerfile） | 简单 |
+| **ROS依赖** | 容器内自带 | 需本地安装ROS |
+| **推荐场景** | 无ROS环境/完全隔离 | 已有ROS环境 |
+
+### 12.2 方案A：Docker运行（推荐，完全隔离）
+
+#### 步骤1：创建Dockerfile
+
+在项目根目录创建 `Dockerfile`：
+
+```dockerfile
+# Dockerfile for MonoLaneMapping
+FROM ros:noetic-ros-base-focal
+
+# 设置非交互模式
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-dev \
+    git \
+    wget \
+    libboost-all-dev \
+    libeigen3-dev \
+    libmetis-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装GTSAM
+RUN cd /tmp && \
+    git clone https://github.com/borglab/gtsam.git && \
+    cd gtsam && \
+    git checkout 4.2 && \
+    mkdir build && cd build && \
+    cmake .. -DGTSAM_BUILD_PYTHON=ON \
+             -DGTSAM_PYTHON_VERSION=3.8 \
+             -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) && \
+    make install && \
+    cd /tmp && rm -rf gtsam
+
+# 设置GTSAM Python路径
+ENV PYTHONPATH="/usr/local/lib/python3/dist-packages:${PYTHONPATH}"
+
+# 创建catkin工作空间
+RUN mkdir -p /catkin_ws/src
+WORKDIR /catkin_ws/src
+
+# 克隆openlane_bag
+RUN git clone https://github.com/qiaozhijian/openlane_bag.git
+
+# 复制项目代码
+COPY . /catkin_ws/src/MonoLaneMapping
+
+# 安装Python依赖
+RUN pip3 install --no-cache-dir \
+    numpy \
+    scipy \
+    open3d \
+    jaxlie \
+    pyyaml \
+    tqdm \
+    matplotlib
+
+# 编译catkin工作空间
+WORKDIR /catkin_ws
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
+
+# 设置入口点
+COPY docker_entrypoint.sh /docker_entrypoint.sh
+RUN chmod +x /docker_entrypoint.sh
+ENTRYPOINT ["/docker_entrypoint.sh"]
+
+CMD ["bash"]
+```
+
+#### 步骤2：创建入口脚本
+
+创建 `docker_entrypoint.sh`：
+
+```bash
+#!/bin/bash
+set -e
+
+# 激活ROS环境
+source /opt/ros/noetic/setup.bash
+source /catkin_ws/devel/setup.bash
+
+# 设置Python路径
+export PYTHONPATH="/catkin_ws/src/MonoLaneMapping:${PYTHONPATH}"
+
+exec "$@"
+```
+
+#### 步骤3：构建和运行
+
+```bash
+# 构建Docker镜像
+cd /path/to/MonoLaneMapping
+docker build -t monolam:latest .
+
+# 运行容器（挂载数据目录）
+docker run -it --rm \
+    -v /path/to/OpenLane:/data/OpenLane \
+    -v $(pwd)/output:/catkin_ws/src/MonoLaneMapping/output \
+    monolam:latest
+
+# 在容器内运行demo
+python3 examples/demo_mapping.py --cfg_file=config/lane_mapping.yaml
+```
+
+#### Docker Compose（可选）
+
+创建 `docker-compose.yml`：
+
+```yaml
+version: '3.8'
+services:
+  monolam:
+    build: .
+    image: monolam:latest
+    container_name: monolam_container
+    volumes:
+      - /path/to/OpenLane:/data/OpenLane:ro
+      - ./output:/catkin_ws/src/MonoLaneMapping/output
+      - ./config:/catkin_ws/src/MonoLaneMapping/config
+    environment:
+      - DISPLAY=${DISPLAY}
+    network_mode: host
+    stdin_open: true
+    tty: true
+```
+
+```bash
+# 使用docker-compose
+docker-compose up -d
+docker-compose exec monolam bash
+```
+
+### 12.3 方案B：Conda环境运行
+
+#### 前提条件
+
+- 本地已安装 ROS Noetic（Ubuntu 20.04）或 ROS Melodic（Ubuntu 18.04）
+- 已安装 Anaconda/Miniconda
+
+#### 步骤1：创建Conda环境
+
+```bash
+# 创建环境
+conda create -n monolam python=3.8 -y
+conda activate monolam
+
+# 安装基础依赖
+pip install numpy scipy open3d jaxlie pyyaml tqdm matplotlib
+
+# 安装ROS Python包（在conda环境中）
+pip install rospkg catkin_pkg empy pycryptodomex
+```
+
+#### 步骤2：安装GTSAM（Conda版）
+
+```bash
+# 方法1：使用conda-forge（推荐）
+conda install -c conda-forge gtsam -y
+
+# 方法2：从源码编译（如果conda版本不可用）
+cd /tmp
+git clone https://github.com/borglab/gtsam.git
+cd gtsam && git checkout 4.2
+mkdir build && cd build
+cmake .. -DGTSAM_BUILD_PYTHON=ON \
+         -DGTSAM_PYTHON_VERSION=3.8 \
+         -DPYTHON_EXECUTABLE=$(which python) \
+         -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
+make -j$(nproc) && make install
+```
+
+#### 步骤3：配置ROS工作空间
+
+```bash
+# 创建catkin工作空间
+mkdir -p ~/catkin_ws/src
+cd ~/catkin_ws/src
+
+# 克隆依赖包
+git clone https://github.com/qiaozhijian/openlane_bag.git
+
+# 克隆或链接MonoLaneMapping
+git clone https://github.com/HKUST-Aerial-Robotics/MonoLaneMapping.git
+# 或者创建符号链接
+# ln -s /path/to/MonoLaneMapping ./
+
+# 编译（注意：需要在ROS环境下，但使用conda的Python）
+cd ~/catkin_ws
+source /opt/ros/noetic/setup.bash
+catkin_make -DPYTHON_EXECUTABLE=$(conda run -n monolam which python)
+```
+
+#### 步骤4：运行脚本
+
+创建运行脚本 `run_monolam.sh`：
+
+```bash
+#!/bin/bash
+
+# 激活conda环境
+source ~/anaconda3/etc/profile.d/conda.sh  # 或 miniconda3
+conda activate monolam
+
+# 激活ROS环境
+source /opt/ros/noetic/setup.bash
+source ~/catkin_ws/devel/setup.bash
+
+# 设置Python路径
+export PYTHONPATH="$HOME/catkin_ws/src/MonoLaneMapping:$PYTHONPATH"
+
+# 运行
+cd ~/catkin_ws/src/MonoLaneMapping
+python examples/demo_mapping.py --cfg_file=config/lane_mapping.yaml
+```
+
+```bash
+chmod +x run_monolam.sh
+./run_monolam.sh
+```
+
+### 12.4 快速运行检查清单
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    运行前检查清单                                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   □ 1. 下载OpenLane数据集                                                   │
+│        - 下载链接：OneDrive 或 百度网盘（见readme.md）                      │
+│        - 解压到指定目录                                                     │
+│                                                                             │
+│   □ 2. 下载预处理的rosbag                                                   │
+│        - 链接：https://pan.baidu.com/s/1Hrd8ashoiB4_f0B-iz6OHQ?pwd=2023    │
+│        - 放到 OpenLane/lane3d_1000/rosbag/ 目录                            │
+│                                                                             │
+│   □ 3. 修改配置文件路径                                                     │
+│        config/lane_mapping.yaml:                                            │
+│        dataset:                                                             │
+│            dataset_dir: "/your/path/to/OpenLane/"                          │
+│                                                                             │
+│   □ 4. 验证依赖安装                                                         │
+│        python -c "import gtsam; print('GTSAM OK')"                         │
+│        python -c "import open3d; print('Open3D OK')"                       │
+│        python -c "import rospy; print('ROS OK')"                           │
+│                                                                             │
+│   □ 5. 运行测试                                                             │
+│        python examples/demo_curve_fitting.py  # 不需要数据集                │
+│        python examples/demo_mapping.py        # 需要数据集                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 12.5 常见问题解决
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| `ModuleNotFoundError: No module named 'gtsam'` | GTSAM未安装或路径错误 | 检查PYTHONPATH，重新安装GTSAM |
+| `ModuleNotFoundError: No module named 'openlane_bag'` | ROS包未编译 | 运行catkin_make并source setup.bash |
+| `Could not find a configuration file for package "GTSAM"` | CMake找不到GTSAM | 设置CMAKE_PREFIX_PATH |
+| `rosbag: command not found` | ROS环境未激活 | source /opt/ros/noetic/setup.bash |
+| `ImportError: libOpen3D.so` | Open3D库路径问题 | pip uninstall open3d && pip install open3d |
+
+### 12.6 最简Docker镜像（一键运行）
+
+如果你只想快速测试，可以使用以下精简Dockerfile：
+
+```dockerfile
+# Dockerfile.simple
+FROM osrf/ros:noetic-desktop-full
+
+RUN apt-get update && apt-get install -y python3-pip git
+RUN pip3 install gtsam open3d jaxlie numpy scipy tqdm pyyaml matplotlib
+
+RUN mkdir -p /ws/src && cd /ws/src && \
+    git clone https://github.com/qiaozhijian/openlane_bag.git && \
+    git clone https://github.com/HKUST-Aerial-Robotics/MonoLaneMapping.git
+
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && cd /ws && catkin_make"
+
+RUN echo 'source /opt/ros/noetic/setup.bash' >> ~/.bashrc && \
+    echo 'source /ws/devel/setup.bash' >> ~/.bashrc && \
+    echo 'export PYTHONPATH=/ws/src/MonoLaneMapping:$PYTHONPATH' >> ~/.bashrc
+
+WORKDIR /ws/src/MonoLaneMapping
+```
+
+```bash
+# 构建和运行
+docker build -f Dockerfile.simple -t monolam-simple .
+docker run -it -v /your/OpenLane:/data/OpenLane monolam-simple bash
+
+# 在容器内
+python3 examples/demo_curve_fitting.py  # 测试基本功能
+```
+
+---
+
 ## 参考文献
 
 ```bibtex
@@ -2986,5 +3300,5 @@ target_link_libraries(lane_mapping
 
 ---
 
-*文档版本: 1.3*
+*文档版本: 1.4*
 *最后更新: 2024*

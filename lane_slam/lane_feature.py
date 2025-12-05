@@ -4,9 +4,13 @@
 # @email: zqiaoac@connect.ust.hk
 import numpy as np
 from scipy.spatial import KDTree
-import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('TkAgg')
+# 尝试使用TkAgg，如果失败则使用Agg（无显示后端）
+try:
+    matplotlib.use('TkAgg')
+except ImportError:
+    matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 from misc.config import cfg
 from lane_slam.linked_points import LinkedPoints
