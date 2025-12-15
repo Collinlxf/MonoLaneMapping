@@ -12,7 +12,7 @@ from typing import List, Optional
 from functools import partial
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 
 class CubicBSplineApproximator:
     # default four control points
