@@ -1,10 +1,11 @@
 # 曲线方法对比: Bézier vs Catmull-Rom vs B-Spline
 
 ## 目录
+
 1. [概述](#概述)
 2. [三种曲线的数学原理](#三种曲线的数学原理)
 3. [核心区别对比](#核心区别对比)
-4. [**三种曲线的统一表示与相互转换**](#三种曲线的统一表示与相互转换) ⭐ **NEW**
+4. [三种曲线的统一表示与相互转换](#三种曲线的统一表示与相互转换)
 5. [实现原理详解](#实现原理详解)
 6. [应用场景分析](#应用场景分析)
 7. [为什么车道SLAM选择Catmull-Rom](#为什么车道slam选择catmull-rom)
@@ -21,15 +22,15 @@
 
 ### 快速对比
 
-| 特性 | Bézier曲线 | Catmull-Rom样条 | B-Spline |
-|------|-----------|----------------|----------|
-| **发明年代** | 1962 (Pierre Bézier) | 1974 (Catmull & Rom) | 1946 (Schoenberg) |
-| **是否通过控制点** | ❌ 仅通过端点 | ✅ 通过所有控制点 | ❌ 不通过控制点 |
-| **曲线类型** | 逼近 | **插值** | 逼近 |
-| **连续性** | C⁰ (分段) | **C¹** | **C²** |
-| **局部性** | ❌ 全局影响 | ✅ 局部影响 | ✅ 局部影响 |
-| **参数** | 次数(n) | 张力tau | 节点向量 |
-| **计算复杂度** | O(n²) | **O(1)** | O(n) |
+| 特性          | Bézier曲线             | Catmull-Rom样条        | B-Spline          |
+| ----------- | -------------------- | -------------------- | ----------------- |
+| **发明年代**    | 1962 (Pierre Bézier) | 1974 (Catmull & Rom) | 1946 (Schoenberg) |
+| **是否通过控制点** | ❌ 仅通过端点              | ✅ 通过所有控制点            | ❌ 不通过控制点          |
+| **曲线类型**    | 逼近                   | **插值**               | 逼近                |
+| **连续性**     | C⁰ (分段)              | **C¹**               | **C²**            |
+| **局部性**     | ❌ 全局影响               | ✅ 局部影响               | ✅ 局部影响            |
+| **参数**      | 次数(n)                | 张力tau                | 节点向量              |
+| **计算复杂度**   | O(n²)                | **O(1)**             | O(n)              |
 
 ---
 
@@ -48,6 +49,7 @@ B_{i,n}(t) = \binom{n}{i} t^i (1-t)^{n-i}
 $$
 
 **核心特点**:
+
 - 使用**伯恩斯坦多项式**作为基函数
 - 曲线次数 = 控制点数量 - 1
 - **全局性**: 修改任一控制点会影响整条曲线
@@ -94,12 +96,14 @@ $$
 $$
 
 **参数说明**:
+
 - $\tau$ (tau): **张力参数**,通常取0.5
   - $\tau = 0$: 曲线退化为直线
   - $\tau = 0.5$: 标准Catmull-Rom样条
   - $\tau \to 1$: 曲线更加松弛
 
 **核心特点**:
+
 - **插值性质**: 曲线精确通过 $\mathbf{P}_1$ 和 $\mathbf{P}_2$
 - **局部性**: 修改一个控制点只影响相邻的4个控制点范围
 - **C¹连续**: 位置和导数连续,但曲率可能不连续
@@ -130,6 +134,7 @@ $$
 $$
 
 **核心特点**:
+
 - **逼近性**: 曲线**不通过控制点**,而是被控制点"吸引"
 - **C²连续**: 位置、导数、曲率都连续,**最平滑**
 - **局部控制**: 修改一个控制点只影响局部曲线段
@@ -159,11 +164,11 @@ B-Spline:    ○--～--○--～--○--～--○--～--○
 
 ### 2. 连续性等级
 
-| 连续性 | 含义 | Bézier | Catmull-Rom | B-Spline |
-|--------|------|--------|-------------|----------|
-| **C⁰** | 位置连续 | ✅ | ✅ | ✅ |
-| **C¹** | 导数连续(切线) | ❌* | ✅ | ✅ |
-| **C²** | 曲率连续 | ❌ | ❌ | ✅ |
+| 连续性    | 含义       | Bézier | Catmull-Rom | B-Spline |
+| ------ | -------- | ------ | ----------- | -------- |
+| **C⁰** | 位置连续     | ✅      | ✅           | ✅        |
+| **C¹** | 导数连续(切线) | ❌*     | ✅           | ✅        |
+| **C²** | 曲率连续     | ❌      | ❌           | ✅        |
 
 *注: 分段Bézier在连接处可能不连续,需要特殊构造才能C¹
 
@@ -178,6 +183,7 @@ B-Spline:         [======]             只影响相邻4个点的范围
 ```
 
 **为什么重要?**
+
 - ✅ **局部性好**: 调整局部形状不影响远处,适合编辑和优化
 - ❌ **全局性**: 难以精确控制局部形状
 
@@ -185,11 +191,11 @@ B-Spline:         [======]             只影响相邻4个点的范围
 
 假设有 $n$ 个控制点:
 
-| 曲线类型 | 单点计算 | 整条曲线 | 内存占用 |
-|---------|---------|---------|---------|
-| Bézier | O(n) | O(n·m) | 低 |
-| Catmull-Rom | **O(1)** | **O(m)** | 低 |
-| B-Spline | O(1) | O(m) | 中 |
+| 曲线类型        | 单点计算     | 整条曲线     | 内存占用 |
+| ----------- | -------- | -------- | ---- |
+| Bézier      | O(n)     | O(n·m)   | 低    |
+| Catmull-Rom | **O(1)** | **O(m)** | 低    |
+| B-Spline    | O(1)     | O(m)     | 中    |
 
 其中 $m$ 是采样点数量
 
@@ -270,6 +276,7 @@ N_{i,p}(t) = \frac{t - t_i}{t_{i+p} - t_i} N_{i,p-1}(t) + \frac{t_{i+p+1} - t}{t
 $$
 
 **关键洞察**: 
+
 - 这些基函数都是**多项式**
 - 它们只是对同一空间的**不同分解**
 - 就像向量空间中的不同基底！
@@ -304,6 +311,7 @@ $$
 $$
 
 **结果**:
+
 - Bézier曲线的端点: $\mathbf{Q}_0 = \mathbf{P}_1$, $\mathbf{Q}_3 = \mathbf{P}_2$
 - Bézier曲线的控制点: $\mathbf{Q}_1 = \mathbf{P}_1 + \frac{1}{6}(\mathbf{P}_2 - \mathbf{P}_0)$
 - 这两条曲线**完全等价** (形状完全相同)
@@ -377,11 +385,13 @@ def bspline_segment_to_bezier(P0, P1, P2, P3):
 **答案**: 可以，但需要**增加控制点**！
 
 **原理**:
+
 - Bézier是**全局**的 (n次Bézier = 1段)
 - B-Spline是**局部**的 (n个控制点 = n-3段)
 - 转换需要将全局Bézier分解为多个B-Spline片段
 
 **步骤**:
+
 1. 将Bézier曲线细分 (de Casteljau算法)
 2. 每个子Bézier转换为B-Spline片段
 3. 拼接成完整B-Spline
@@ -393,14 +403,14 @@ def bezier_to_bspline(bezier_points, num_segments=10):
     """将Bézier曲线转换为B-Spline (通过细分)"""
     # 1. 细分Bézier曲线
     sub_beziers = subdivide_bezier(bezier_points, num_segments)
-    
+
     # 2. 每段转为B-Spline
     bspline_ctrl_pts = []
     for sub_bez in sub_beziers:
         # 逆向转换 (求解线性方程)
         local_bspline = solve_bspline_from_bezier(sub_bez)
         bspline_ctrl_pts.extend(local_bspline)
-    
+
     return bspline_ctrl_pts
 ```
 
@@ -410,11 +420,11 @@ def bezier_to_bspline(bezier_points, num_segments=10):
 
 虽然三种曲线都用"控制点"，但**含义完全不同**:
 
-| 曲线类型 | 控制点含义 | 曲线与控制点关系 | 类比 |
-|---------|-----------|---------------|------|
-| **Bézier** | **形状句柄** | 曲线在控制多边形**内部** | 磁铁吸引曲线,但不通过 |
-| **Catmull-Rom** | **插值点** | 曲线**通过**控制点 | 铁轨枕木,曲线必经 |
-| **B-Spline** | **影响权重** | 曲线在控制点**附近** | 重力场,控制点施加力 |
+| 曲线类型            | 控制点含义    | 曲线与控制点关系       | 类比          |
+| --------------- | -------- | -------------- | ----------- |
+| **Bézier**      | **形状句柄** | 曲线在控制多边形**内部** | 磁铁吸引曲线,但不通过 |
+| **Catmull-Rom** | **插值点**  | 曲线**通过**控制点    | 铁轨枕木,曲线必经   |
+| **B-Spline**    | **影响权重** | 曲线在控制点**附近**   | 重力场,控制点施加力  |
 
 **可视化对比**:
 
@@ -524,6 +534,7 @@ print(f"最大误差: {np.max(np.abs(cr_curve - bez_curve))}")
 ```
 
 **输出结果**:
+
 - 两条曲线**完全重合** (误差 < 1e-15)
 - Bézier控制点与Catmull-Rom控制点**不同**
 - 但它们描述**相同的几何形状**
@@ -541,6 +552,7 @@ $$
 $$
 
 **关键洞察**:
+
 - Bézier、Catmull-Rom、B-Spline都是 $\mathbb{P}_3$ 的**不同基底**
 - 基底之间可以通过**线性变换**相互转换
 - 就像笛卡尔坐标系和极坐标系都能描述同一个点！
@@ -577,13 +589,13 @@ def edit_with_bezier_handles(catmull_rom_curve):
     """允许用户用Bézier手柄编辑Catmull-Rom曲线"""
     # 1. 转为Bézier (方便可视化控制柄)
     bezier_ctrl = cr_to_bezier(catmull_rom_curve.ctrl_pts)
-    
+
     # 2. 用户拖动Bézier控制点
     edited_bezier = ui_edit_bezier(bezier_ctrl)
-    
+
     # 3. 转回Catmull-Rom (保持插值性质)
     new_cr_ctrl = bezier_to_cr(edited_bezier)
-    
+
     return new_cr_ctrl
 ```
 
@@ -595,13 +607,13 @@ def trajectory_pipeline(detected_lane_points):
     """多阶段轨迹表示转换"""
     # 1. 感知阶段: Catmull-Rom插值 (必须通过检测点)
     cr_lane = fit_catmull_rom(detected_lane_points)
-    
+
     # 2. 规划阶段: 转为B-Spline (平滑优化)
     bspline_traj = cr_to_bspline_smooth(cr_lane)
-    
+
     # 3. 控制阶段: 转为Bézier (便于计算导数)
     bezier_segs = bspline_to_bezier_segments(bspline_traj)
-    
+
     return bezier_segs
 ```
 
@@ -611,16 +623,17 @@ def trajectory_pipeline(detected_lane_points):
 
 虽然理论上可以转换，但实际中有限制:
 
-| 转换方向 | 是否精确 | 代价 | 限制 |
-|---------|---------|------|------|
-| Catmull-Rom → Bézier | ✅ 精确 | 低 | 无 |
-| Bézier → Catmull-Rom | ❌ 近似 | 中 | 需要迭代求解 |
-| B-Spline → Bézier | ✅ 精确 (片段) | 低 | 需分段 |
-| Bézier → B-Spline | ❌ 近似 | 高 | 需增加控制点 |
-| Catmull-Rom → B-Spline | ❌ 近似 | 中 | 连续性不同 |
-| B-Spline → Catmull-Rom | ❌ 近似 | 高 | 插值性质不同 |
+| 转换方向                   | 是否精确      | 代价  | 限制     |
+| ---------------------- | --------- | --- | ------ |
+| Catmull-Rom → Bézier   | ✅ 精确      | 低   | 无      |
+| Bézier → Catmull-Rom   | ❌ 近似      | 中   | 需要迭代求解 |
+| B-Spline → Bézier      | ✅ 精确 (片段) | 低   | 需分段    |
+| Bézier → B-Spline      | ❌ 近似      | 高   | 需增加控制点 |
+| Catmull-Rom → B-Spline | ❌ 近似      | 中   | 连续性不同  |
+| B-Spline → Catmull-Rom | ❌ 近似      | 高   | 插值性质不同 |
 
 **关键原则**:
+
 - ✅ **相同插值性质**的转换是精确的 (如Catmull-Rom ↔ Hermite)
 - ⚠️ **插值 → 逼近**需要求解优化问题
 - ❌ **全局 → 局部**需要细分和拼接
@@ -632,15 +645,18 @@ def trajectory_pipeline(detected_lane_points):
 **为什么要理解这些转换?**
 
 1. **理论价值**: 
+   
    - 认识到不同曲线是"同一事物的不同视角"
    - 数学本质是基函数的选择
 
 2. **工程价值**:
+   
    - 软件间格式互操作
    - 根据场景选择最优表示
    - 利用不同表示的优势
 
 3. **优化价值**:
+   
    - Catmull-Rom优化 → 转为B-Spline → 平滑优化 → 转回
    - 利用B-Spline的C²连续性优化，保持Catmull-Rom的插值性
 
@@ -652,15 +668,15 @@ class LaneFeature:
     def __init__(self, detected_points):
         # 1. 用Catmull-Rom建模 (插值,符合物理)
         self.catmull_rom = fit_catmull_rom(detected_points)
-        
+
     def optimize_smoothness(self):
         # 2. 转为B-Spline优化 (利用C²连续性)
         bspline = self.catmull_rom.to_bspline()
         bspline.optimize_curvature()  # 曲率优化
-        
+
         # 3. 转回Catmull-Rom (保持通过检测点)
         self.catmull_rom = bspline.to_catmull_rom_approx()
-    
+
     def export_for_planning(self):
         # 4. 导出Bézier (规划器要求)
         return self.catmull_rom.to_bezier_segments()
@@ -686,6 +702,7 @@ class LaneFeature:
 ```
 
 **核心思想**:
+
 - 📐 **数学本质**: 都是多项式基的线性组合
 - 🔄 **可以转换**: 通过基变换矩阵
 - 🎯 **各有所长**: 根据应用场景选择
@@ -726,16 +743,19 @@ def bezier_curve(control_points, t):
 ```
 
 **关键实现点**:
+
 1. 使用伯恩斯坦多项式作为权重
 2. 所有控制点的加权和
 3. 权重和为1 (配分性质)
 
 **优势**:
+
 - 简单直观
 - 数学性质优良
 - 适合少量控制点
 
 **劣势**:
+
 - 高次多项式数值不稳定
 - 全局控制,局部编辑困难
 
@@ -755,21 +775,23 @@ def catmull_rom_spline(four_points, t, tau=0.5):
         [2*tau,  tau-3,  3-2*tau, -tau],
         [-tau,   2-tau,  tau-2,   tau]
     ])
-    
+
     # 参数向量
     u_vec = np.array([1, t, t**2, t**3])
-    
+
     # 计算曲线点: U * M * P
     point = u_vec @ M @ four_points
     return point
 ```
 
 **关键实现点**:
+
 1. 固定使用4个控制点生成曲线段
 2. 多段连接形成长曲线
 3. 参数 $\tau$ 控制张力
 
 **多段连接策略**:
+
 ```python
 # 对于n个控制点,生成(n-3)段曲线
 for i in range(n - 3):
@@ -778,6 +800,7 @@ for i in range(n - 3):
 ```
 
 **边界处理**:
+
 - 如果控制点 < 4个,需要**填充虚拟点**
 - 首尾虚拟点用于定义切线方向
 
@@ -799,21 +822,23 @@ def bspline_curve(four_points, t):
         [-3,  0,  3, 0],
         [ 1,  4,  1, 0]
     ]) / 6.0
-    
+
     # 参数向量 (注意顺序与Catmull-Rom不同)
     u_vec = np.array([t**3, t**2, t, 1])
-    
+
     # 计算曲线点
     point = u_vec @ M @ four_points
     return point
 ```
 
 **关键实现点**:
+
 1. 基础矩阵包含因子 1/6 (归一化)
 2. 每段曲线受4个控制点影响
 3. 曲线在控制点的"平均"位置
 
 **节点向量 (Knot Vector)**:
+
 - 对于高级B-Spline,需要定义节点向量
 - 均匀B-Spline: 等间距节点
 - 非均匀B-Spline (NURBS): 自定义节点分布
@@ -825,6 +850,7 @@ def bspline_curve(four_points, t):
 ### 1. Bézier 曲线适用场景
 
 ✅ **推荐使用**:
+
 - **字体设计**: TrueType/OpenType字体轮廓
 - **矢量图形**: Adobe Illustrator, SVG路径
 - **动画路径**: 简单运动轨迹
@@ -832,12 +858,14 @@ def bspline_curve(four_points, t):
 - **少量控制点**: 2-5个控制点的简单曲线
 
 ❌ **不推荐使用**:
+
 - 大量控制点 (>10个)
 - 需要精确通过多个点
 - 需要局部编辑
 - 实时优化场景
 
 **实际应用案例**:
+
 ```python
 # CSS动画缓动函数
 cubic-bezier(0.25, 0.1, 0.25, 1.0)
@@ -851,6 +879,7 @@ cubic-bezier(0.25, 0.1, 0.25, 1.0)
 ### 2. Catmull-Rom 样条适用场景
 
 ✅ **推荐使用**:
+
 - **路径规划**: 机器人/自动驾驶路径
 - **相机运动**: 3D游戏相机路径
 - **数据插值**: 通过已知数据点生成平滑曲线
@@ -859,11 +888,13 @@ cubic-bezier(0.25, 0.1, 0.25, 1.0)
 - **轨迹跟踪**: 需要精确通过路径点
 
 ❌ **不推荐使用**:
+
 - 需要最高平滑度 (C²连续)
 - 控制点噪声较大
 - 需要数学优化 (因子图优化可能不收敛)
 
 **实际应用案例**:
+
 ```python
 # Unity 3D相机路径
 CatmullRomSpline camera_path = new CatmullRomSpline(waypoints);
@@ -877,6 +908,7 @@ nav_msgs::Path smooth_path = catmullRomSmooth(raw_path);
 ### 3. B-Spline 适用场景
 
 ✅ **推荐使用**:
+
 - **CAD/CAM**: 工业设计,曲面建模
 - **数值优化**: 最平滑曲线拟合
 - **图像处理**: 边缘平滑,图像变形
@@ -885,11 +917,13 @@ nav_msgs::Path smooth_path = catmullRomSmooth(raw_path);
 - **轨迹优化**: 需要最小化加加速度
 
 ❌ **不推荐使用**:
+
 - 必须通过控制点
 - 实时性要求极高
 - 简单场景 (过于复杂)
 
 **实际应用案例**:
+
 ```python
 # NURBS曲面建模
 surface = geomdl.BSpline.Surface()
@@ -917,6 +951,7 @@ trajectory = bspline_trajectory_optimization(waypoints)
 ### 为什么不用 Bézier?
 
 ❌ **致命缺陷**:
+
 ```python
 # Bézier不通过中间控制点
 control_points = [观测点1, 观测点2, 观测点3, 观测点4]
@@ -926,6 +961,7 @@ curve = BezierCurve(control_points)
 ```
 
 ❌ **全局影响**:
+
 ```python
 # 修改局部控制点会影响整条曲线
 map.update_control_point(10, new_observation)
@@ -937,6 +973,7 @@ map.update_control_point(10, new_observation)
 虽然B-Spline更平滑,但:
 
 ❌ **不通过控制点**:
+
 ```python
 # 优化后的控制点位置 ≠ 车道线实际位置
 optimized_ctrl_pts = factor_graph.optimize()
@@ -944,6 +981,7 @@ optimized_ctrl_pts = factor_graph.optimize()
 ```
 
 ❌ **优化困难**:
+
 ```python
 # 因子图优化时,误差函数复杂
 error = observation - bspline.evaluate(u)
@@ -983,7 +1021,7 @@ point = catmull_rom(ctrl_pts, u)  # O(1)时间复杂度
 ```python
 def error_catmull_rom(measurement, this, values, jacobians):
     """Catmull-Rom因子误差函数
-    
+
     优势:
     1. 观测点直接对应曲线上的点
     2. Jacobian易于解析计算
@@ -991,21 +1029,22 @@ def error_catmull_rom(measurement, this, values, jacobians):
     """
     ctrl_pts = [values.atPoint3(this.keys()[i]) for i in range(4)]
     spline = CatmullRomSpline(ctrl_pts)
-    
+
     u = measurement[3]  # 参数化位置
     est_pt, coeff = spline.get_point(u, return_coeff=True)
-    
+
     error = est_pt - measurement[:3]
-    
+
     # 简单的Jacobian (线性!)
     if jacobians is not None:
         for i in range(4):
             jacobians[i] = np.eye(3) * coeff[i]
-    
+
     return error
 ```
 
 **对比B-Spline的复杂性**:
+
 ```python
 # B-Spline需要迭代找最近点
 def find_closest_parameter(observation, bspline):
@@ -1034,6 +1073,7 @@ python3 examples/curve_comparison.py
 ```
 
 生成的可视化图像:
+
 1. `outputs/curve_comparison_simple.png` - 简单对比
 2. `outputs/curve_interpolation_vs_approximation.png` - 插值vs逼近
 3. `outputs/curve_parameter_effects.png` - 参数影响
@@ -1042,6 +1082,7 @@ python3 examples/curve_comparison.py
 ### 完整实现示例
 
 见 `examples/curve_comparison.py` 文件,包含:
+
 - `BezierCurve`: 完整Bézier实现
 - `CatmullRomCurve`: Catmull-Rom实现
 - `BSplineCurve`: B-Spline实现
@@ -1051,15 +1092,15 @@ python3 examples/curve_comparison.py
 
 ## 总结对比表
 
-| 维度 | Bézier | Catmull-Rom | B-Spline | 车道SLAM需求 |
-|------|--------|-------------|----------|-------------|
-| **插值性** | 仅端点 | ✅ 通过控制点 | 不通过 | ✅ 必须通过 |
-| **平滑性** | C⁰ | C¹ | **C²** | C¹足够 |
-| **局部性** | ❌ 全局 | ✅ 局部 | ✅ 局部 | ✅ 必须局部 |
-| **计算速度** | 中 | **快** | 中 | ✅ 需要快 |
-| **优化友好** | 差 | ✅ 简单 | 复杂 | ✅ 必须简单 |
-| **直观性** | 中 | ✅ 直观 | 不直观 | ✅ 需要直观 |
-| **稳定性** | 中 | 好 | **最好** | 好即可 |
+| 维度       | Bézier | Catmull-Rom | B-Spline | 车道SLAM需求 |
+| -------- | ------ | ----------- | -------- | -------- |
+| **插值性**  | 仅端点    | ✅ 通过控制点     | 不通过      | ✅ 必须通过   |
+| **平滑性**  | C⁰     | C¹          | **C²**   | C¹足够     |
+| **局部性**  | ❌ 全局   | ✅ 局部        | ✅ 局部     | ✅ 必须局部   |
+| **计算速度** | 中      | **快**       | 中        | ✅ 需要快    |
+| **优化友好** | 差      | ✅ 简单        | 复杂       | ✅ 必须简单   |
+| **直观性**  | 中      | ✅ 直观        | 不直观      | ✅ 需要直观   |
+| **稳定性**  | 中      | 好           | **最好**   | 好即可      |
 
 **结论**: Catmull-Rom在**插值性、局部性、计算效率、优化友好**方面完美匹配车道SLAM需求,是最佳选择!
 
@@ -1072,6 +1113,7 @@ python3 examples/curve_comparison.py
 这是一个**非常关键的问题**,直接影响SLAM系统的设计。答案分两个阶段:
 
 #### 阶段1: 初始化 (第一次观测到车道线)
+
 ✅ **控制点必须在"感知给的点集合"表示的线上**
 
 ```python
@@ -1080,18 +1122,20 @@ if lane_id not in map:
     # 从感知网络的检测结果中提取控制点
     detected_points = perception_network.detect()  # 上游PersFormer给的点云
     control_points = skeleton_extraction(detected_points)  # 从检测点云提取
-    
+
     # 创建Catmull-Rom曲线
     lane_curve = CatmullRomSpline(control_points)
     map[lane_id] = lane_curve
 ```
 
 **为什么?**
+
 - 此时地图中还**没有**这条车道线
 - 必须**基于当前观测**初始化
 - 控制点来源于检测点云,自然"在线上"
 
 #### 阶段2: 更新 (后续帧再次观测到同一车道线)
+
 ⚠️ **控制点可以在"历史地图"表示的线上,但会用新观测优化**
 
 ```python
@@ -1099,15 +1143,15 @@ if lane_id not in map:
 if lane_id in map:
     # 当前地图中的控制点
     map_control_points = map[lane_id].get_control_points()
-    
+
     # 新检测到的点云
     new_detected_points = perception_network.detect()
-    
+
     # 两种策略:
     # 策略A: 扩展地图(增量式建图)
     new_control_points = skeleton_extraction(new_detected_points)
     map[lane_id].extend(new_control_points)  # 添加新控制点
-    
+
     # 策略B: 因子图优化(精炼已有控制点)
     # 控制点位置会被优化,不再严格在"检测点云"上
     # 而是在融合多帧观测后的"最优估计"上
@@ -1119,6 +1163,7 @@ if lane_id in map:
 ```
 
 **关键洞察**: 
+
 - ✅ **初始化**: 控制点 ∈ 检测点云
 - ⚠️ **优化后**: 控制点 ∈ 最优估计(可能略偏离任一帧的检测)
 - ✅ **约束**: Catmull-Rom曲线仍然通过控制点
@@ -1151,11 +1196,11 @@ if lane_id in map:
 
 **本项目的策略**:
 
-| 阶段 | 控制点位置 | 所在的"线" | 代码位置 |
-|------|-----------|-----------|---------|
-| **初始化** | 从检测点云提取 | 感知检测的线 | `init_ctrl_pts()` |
-| **扩展** | 从新检测点云提取 | 新检测的线 | `update_ctrl_pts()` |
-| **优化** | 融合多帧观测 | 地图估计的线 | `factor_graph_optimize()` |
+| 阶段      | 控制点位置    | 所在的"线" | 代码位置                      |
+| ------- | -------- | ------ | ------------------------- |
+| **初始化** | 从检测点云提取  | 感知检测的线 | `init_ctrl_pts()`         |
+| **扩展**  | 从新检测点云提取 | 新检测的线  | `update_ctrl_pts()`       |
+| **优化**  | 融合多帧观测   | 地图估计的线 | `factor_graph_optimize()` |
 
 ### 实际代码中的体现
 
@@ -1166,7 +1211,7 @@ if lane_id in map:
 if lane_feature_w.id not in self.lanes_in_map:
     # 第一次见到这条车道线
     self.lanes_in_map[lane_feature_w.id] = lane_feature_w
-    
+
     # 从检测点云初始化控制点
     self.lanes_in_map[lane_feature_w.id].init_ctrl_pts(
         lane_feature_w,           # ← 包含检测点云 lane_w.get_xyzs()
@@ -1180,7 +1225,7 @@ def init_ctrl_pts(self, lane_w, cur_pose_cw):
     """初始化控制点 - 从检测点云中提取"""
     # lane_w.get_xyzs() 就是感知网络给的点云!
     self.get_skeleton(lane_w.get_xyzs(), polyline=lane_w.polyline)
-    
+
     # 此时: 控制点 ∈ 检测点云
     # Catmull-Rom曲线通过这些控制点
 ```
@@ -1199,14 +1244,14 @@ else:
 def update_ctrl_pts(self, lane_w):
     """更新控制点 - 从新检测点云扩展"""
     lane_w_points = lane_w.get_xyzs()  # 新检测的点云
-    
+
     # 从最后一个控制点继续,提取新的控制点
     succ = self.get_skeleton(
         lane_w_points,                    # 新检测点云
         self.ctrl_pts.get_xyz(-1),       # 从已有控制点末尾继续
         polyline=lane_w.polyline
     )
-    
+
     # 新增的控制点 ∈ 新检测点云
 ```
 
@@ -1226,6 +1271,7 @@ for key in result.keys():
 ```
 
 **关键**: 优化后的控制点满足:
+
 ```python
 # 最小化所有帧观测的误差
 min Σ ||detection_frame_i - catmull_rom(control_points)||²
@@ -1246,6 +1292,7 @@ for each_frame:
 ```
 
 **问题**:
+
 1. 检测噪声 → 控制点抖动 → 地图不稳定
 2. 无法融合多帧信息
 3. 地图质量 ≤ 单帧检测质量
@@ -1266,6 +1313,7 @@ control_points_opt = optimize(
 ```
 
 **优势**:
+
 1. ✅ 初始化可靠(基于检测)
 2. ✅ 优化后更准确(融合多帧)
 3. ✅ 地图稳定(平滑抖动)
@@ -1298,13 +1346,14 @@ t=2,3,4... (多次观测,优化)
 
 ### 总结: 三个阶段的"线"
 
-| 阶段 | 控制点必须在... | 原因 | 严格性 |
-|------|---------------|------|-------|
-| **初始化** | 感知检测的线 | 没有先验,必须用检测初始化 | ✅ 严格 |
-| **扩展** | 新检测的线 | 增量建图,扩展新区域 | ✅ 严格 |
-| **优化** | 优化估计的线 | 融合多帧,最优估计 | ⚠️ 不严格 |
+| 阶段      | 控制点必须在... | 原因            | 严格性    |
+| ------- | --------- | ------------- | ------ |
+| **初始化** | 感知检测的线    | 没有先验,必须用检测初始化 | ✅ 严格   |
+| **扩展**  | 新检测的线     | 增量建图,扩展新区域    | ✅ 严格   |
+| **优化**  | 优化估计的线    | 融合多帧,最优估计     | ⚠️ 不严格 |
 
 **核心原则**:
+
 - 📍 **初始化**: 控制点 ∈ 检测点云 (必须)
 - 🔄 **优化**: 控制点 ∈ 最优估计 (可偏离单帧检测)
 - ✅ **不变性**: Catmull-Rom始终通过控制点 (这是关键!)
@@ -1326,31 +1375,34 @@ def init_ctrl_pts(self, lane_w, cur_pose_cw):
     """初始化控制点序列"""
     # 步骤1: 提取骨架点
     self.get_skeleton(lane_w.get_xyzs(), polyline=lane_w.polyline)
-    
+
     # 步骤2: 确定方向(确保控制点从近到远排列)
     head = self.ctrl_pts.get_xyz(0)
     tail = self.ctrl_pts.get_xyz(-1)
     # 转换到相机坐标系
     head_cam = cur_pose_cw[:3, :3].dot(head) + cur_pose_cw[:3, 3]
     tail_cam = cur_pose_cw[:3, :3].dot(tail) + cur_pose_cw[:3, 3]
-    
+
     # 如果头部比尾部远,则反转控制点序列
     if np.linalg.norm(head_cam) > np.linalg.norm(tail_cam):
         self.ctrl_pts.reverse()
 ```
 
 **设计意图**: 
+
 - 确保控制点序列总是从车辆附近开始,向远处延伸
 - 便于增量式更新地图
 
 #### 2. 骨架提取算法 (`get_skeleton`)
 
 **输入**: 
+
 - `origin_points`: 车道线的密集点云 (N×3)
 - `initial_point`: 起始点(可选)
 - `polyline`: 车道线的多项式拟合模型
 
 **输出**: 
+
 - 存储在 `self.ctrl_pts` 中的控制点序列
 
 **算法步骤**:
@@ -1358,22 +1410,22 @@ def init_ctrl_pts(self, lane_w, cur_pose_cw):
 ```python
 def get_skeleton(self, origin_points, initial_point=None, polyline=None):
     """骨架提取算法"""
-    
+
     # 步骤1: 确定初始点
     if initial_point is None:
         initial_point = origin_points[0]
         self.ctrl_pts.add(initial_point)
-    
+
     # 步骤2: 迭代生成控制点
     while True:
         # 2.1 过滤角度
         origin_points = self.get_pts_to_add(origin_points)
         if origin_points.shape[0] == 0:
             return True
-        
+
         # 2.2 在半径内找最远点
         no_assigned = list(range(origin_points.shape[0]))
-        
+
         if origin_points.shape[0] <= 15:
             inner_border, outer_border = self.find_border_point(
                 initial_point, origin_points, no_assigned)
@@ -1381,7 +1433,7 @@ def get_skeleton(self, origin_points, initial_point=None, polyline=None):
             # 使用KDTree加速
             inner_border, outer_border = self.find_border_point_kdtree(
                 initial_point, origin_points, no_assigned)
-        
+
         # 2.3 确定下一个控制点
         if outer_border is None:
             # 所有点都在半径内,使用内边界点
@@ -1393,10 +1445,10 @@ def get_skeleton(self, origin_points, initial_point=None, polyline=None):
             next_point = self.get_next_node(
                 outer_border, current_center, 
                 self.ctrl_points_chord, polyline)
-        
+
         # 2.4 添加控制点(头部或尾部)
         self.ctrl_pts.append(next_point)  # 或 self.ctrl_pts.add()
-        
+
         # 2.5 更新初始点和剩余点云
         initial_point = next_point
         origin_points = origin_points[no_assigned]
@@ -1412,27 +1464,27 @@ def get_pts_to_add(self, points):
     ctrl_pts_size = self.ctrl_pts.size()
     if ctrl_pts_size < 2:
         return points
-    
+
     # 计算头尾方向向量
     normal_a = self.ctrl_pts.get_xyz(0) - self.ctrl_pts.get_xyz(1)
     normal_b = self.ctrl_pts.get_xyz(-1) - self.ctrl_pts.get_xyz(-2)
-    
+
     pts_to_add = []
     for pt in points:
         d_a = pt - self.ctrl_pts.get_xyz(0)
         d_b = pt - self.ctrl_pts.get_xyz(-1)
-        
+
         # 计算夹角余弦值
         cos_a = np.dot(d_a, normal_a) / (norm(d_a) * norm(normal_a))
         cos_b = np.dot(d_b, normal_b) / (norm(d_b) * norm(normal_b))
-        
+
         # 角度阈值(默认90度)
         thd = np.cos(np.deg2rad(cfg.skeleton_angle_thd))
-        
+
         # 保留方向一致的点
         if cos_a > thd or cos_b > thd:
             pts_to_add.append(pt)
-    
+
     return np.array(pts_to_add)
 ```
 
@@ -1445,14 +1497,14 @@ def find_border_point_kdtree(self, query, points, no_assigned):
     """在控制点半径内找最远点(内边界),半径外找最近点(外边界)"""
     kdtree = KDTree(points)
     upper_bound = cfg.ctrl_points_chord  # 默认3.0米
-    
+
     # 查询半径内的点数量
     num = kdtree.query_ball_point(query, r=upper_bound, return_length=True)
     dist, idx = kdtree.query(query, k=num+1)
-    
+
     # 内边界: 半径内最远点
     inner_border = None if num == 0 else points[idx[-2]]
-    
+
     # 外边界: 半径外最近点
     if num == 0:
         outer_border = None if dist == np.inf else points[idx]
@@ -1461,7 +1513,7 @@ def find_border_point_kdtree(self, query, points, no_assigned):
         outer_border = None if dist[-1] == np.inf else points[idx[-1]]
         for i in idx[:-1]:
             no_assigned.remove(i)  # 标记为已使用
-    
+
     return inner_border, outer_border
 ```
 
@@ -1472,46 +1524,47 @@ def find_border_point_kdtree(self, query, points, no_assigned):
 ```python
 def get_next_node(self, query, center, radius, polyline):
     """通过迭代投影,计算下一个控制点
-    
+
     核心思想:
     1. 将query投影到以center为圆心、radius为半径的球面上
     2. 将球面上的点投影到车道线的多项式曲线上
     3. 重复1-2,直到收敛
-    
+
     这样得到的点既在车道线上,又与center距离为radius
     """
     query_new = polyline['rot'].apply(query)
     center_new = polyline['rot'].apply(center)
     last_result = np.array([0, 0, 0])
-    
+
     for i in range(10):  # 最多迭代10次
         # 步骤1: 投影到球面
         nearest_on_circle = self.get_nearest_on_circle(
             query_new, center_new, radius)
-        
+
         # 步骤2: 投影到多项式曲线
         x = nearest_on_circle[0]
         y_on_polyline = polyline['f_yx'](x)
         z_on_polyline = polyline['f_zx'](x)
         query_new = np.array([x, y_on_polyline, z_on_polyline])
-        
+
         # 步骤3: 检查收敛
         delta = np.linalg.norm(query_new - last_result)
         if delta < 1e-2:
             break
         last_result = query_new
-    
+
     # 转换回世界坐标系
     node_on_polyline = polyline['rot'].inv().apply(query_new)
-    
+
     # 最后一次投影到球面,确保距离精确
     nearest_on_circle = self.get_nearest_on_circle(
         node_on_polyline, center, radius)
-    
+
     return nearest_on_circle
 ```
 
 **数学原理**: 交替投影算法
+
 - 在**球面约束**(距离固定)和**曲线约束**(在车道线上)之间交替投影
 - 类似于优化中的坐标下降法
 
@@ -1526,24 +1579,29 @@ lane_mapping:
 ```
 
 **参数说明**:
+
 - `ctrl_points_chord`: 控制点之间的弦长间隔
+  
   - 太小: 控制点过密,计算量大
   - 太大: 曲线拟合精度低
   - **3.0米**: 在精度和效率间取得平衡
-  
+
 - `skeleton_angle_thd`: 点与车道线方向夹角阈值
+  
   - 90度: 保留所有前方和侧方的点
   - 更小的值: 更严格的方向约束
 
 ### 算法特点
 
 ✅ **优势**:
+
 1. **自适应**: 自动适应车道线的弯曲程度
 2. **等间距**: 控制点间隔均匀,曲线参数化更均匀
 3. **在线更新**: 支持增量式添加新观测点
 4. **鲁棒性**: 通过角度过滤和KDTree加速,处理噪声和大数据
 
 ⚠️ **局限**:
+
 1. 依赖多项式拟合的质量
 2. 对起始点位置敏感
 3. 弯道处可能需要更密集的控制点
@@ -1567,7 +1625,7 @@ Catmull-Rom:     ●═══════●═══════●════
 def update_ctrl_pts(self, lane_w):
     """增量式更新控制点"""
     lane_w_points = lane_w.get_xyzs()
-    
+
     # 从最后一个控制点继续生成
     succ = self.get_skeleton(
         lane_w_points, 
@@ -1578,6 +1636,7 @@ def update_ctrl_pts(self, lane_w):
 ```
 
 **设计优势**:
+
 - 不重新计算所有控制点
 - 只在车道线末端追加新控制点
 - 保持历史控制点稳定,有利于SLAM优化收敛
@@ -1630,6 +1689,7 @@ def update_ctrl_pts(self, lane_w):
 ### 感知网络: PersFormer
 
 **网络介绍**:
+
 - **论文**: "PersFormer: 3D Lane Detection via Perspective Transformer"
 - **仓库**: https://github.com/OpenDriveLab/PersFormer_3DLane
 - **输入**: 单目RGB图像
@@ -1649,7 +1709,7 @@ def update_ctrl_pts(self, lane_w):
 
 /lanes_gt:  # Ground Truth (用于评估)
   # 格式同上
-  
+
 /gt_pose_wc:  # 车辆位姿 (来自GPS/IMU或真值)
   position: [x, y, z]
   orientation: [qx, qy, qz, qw]
@@ -1663,11 +1723,11 @@ def load_data_from_bag(self):
     """从rosbag加载数据"""
     for topic, msg, t in self.bag.read_messages(
         topics=['/gt_pose_wc', '/lanes_gt', '/lanes_predict']):
-        
+
         if topic == '/lanes_predict':
             # PersFormer检测结果 ← 感知网络输出
             lanes_predict = lanemsg_to_list(msg)
-            
+
             # 预处理
             lanes_predict = self.preprocess_lanes(lanes_predict)
 
@@ -1675,16 +1735,16 @@ def preprocess_lanes(self, lanes):
     """预处理感知网络输出"""
     for lane in lanes:
         xyz = lane['xyz']  # ← 原始检测点云
-        
+
         # 降采样
         xyz = points_downsample(xyz, self.pp_ds)
-        
+
         # 去噪平滑
         xyz = lane_denoise(xyz, smooth=True, interval=self.pp_ds)
-        
+
         # 按距离排序
         xyz = xyz[np.argsort(np.linalg.norm(xyz, axis=1))]
-        
+
         lane['xyz'] = xyz  # ← 预处理后的点云
     return lanes
 ```
@@ -1709,12 +1769,13 @@ map = {}
 while True:
     # 1. 感知检测 (观测)
     detected_lanes = perception_network.detect(image)
-    
+
     # 2. SLAM处理 (建图+定位)
     map, pose = slam_system.update(detected_lanes, odometry)
 ```
 
 **SLAM的本质**:
+
 ```
 SLAM = 感知观测 + 运动估计 + 数据关联 + 状态优化
 
@@ -1723,14 +1784,15 @@ SLAM = 感知观测 + 运动估计 + 数据关联 + 状态优化
 
 ### 感知质量对SLAM的影响
 
-| 感知质量 | SLAM表现 | 举例 |
-|---------|---------|------|
-| **高质量** | ✅ 准确建图,稳定定位 | 理想条件,检测精度高 |
-| **中等质量** | ⚠️ 需要优化补偿 | 一般天气,部分遮挡 |
-| **低质量** | ❌ 关联失败,漂移 | 强光/夜间,检测失败 |
-| **完全失败** | ❌ 系统降级 | 无车道线路段 |
+| 感知质量     | SLAM表现      | 举例         |
+| -------- | ----------- | ---------- |
+| **高质量**  | ✅ 准确建图,稳定定位 | 理想条件,检测精度高 |
+| **中等质量** | ⚠️ 需要优化补偿   | 一般天气,部分遮挡  |
+| **低质量**  | ❌ 关联失败,漂移   | 强光/夜间,检测失败 |
+| **完全失败** | ❌ 系统降级      | 无车道线路段     |
 
 **本项目的策略**:
+
 ```python
 # 鲁棒性措施
 if detection_quality > threshold:
@@ -1764,6 +1826,7 @@ SLAM (定位与建图):
 ```
 
 **关键洞察**:
+
 1. 📷 **感知是SLAM的眼睛** - 提供观测
 2. 🧠 **SLAM是感知的大脑** - 融合历史,消除噪声
 3. 🤝 **二者协同工作** - 感知→SLAM→规划
@@ -1779,14 +1842,14 @@ class MonoLaneMapping:
             # 1.1 上游感知网络已经运行,结果存在rosbag中
             detected_lanes = frame.get_lanes_predict()  # PersFormer输出
             odometry = frame.get_odometry()
-            
+
             # 1.2 预处理
             detected_lanes = self.preprocess(detected_lanes)
-            
+
             # 2. SLAM处理
             # 2.1 数据关联
             associations = self.associate(detected_lanes, self.map)
-            
+
             # 2.2 提取/更新控制点
             for lane_id, detected_lane in associations:
                 if lane_id not in self.map:
@@ -1796,18 +1859,19 @@ class MonoLaneMapping:
                 else:
                     # 更新: 扩展控制点
                     self.map[lane_id].extend(detected_lane)
-            
+
             # 2.3 因子图优化
             self.map, self.pose = self.optimize(
                 self.map,
                 detected_lanes,
                 odometry
             )
-        
+
         return self.map
 ```
 
 **数据流总结**:
+
 ```
 PersFormer检测 → rosbag存储 → SLAM读取 → 预处理 → 
 骨架提取 → Catmull-Rom建模 → 因子图优化 → 
@@ -1822,15 +1886,15 @@ PersFormer检测 → rosbag存储 → SLAM读取 → 预处理 →
 
 ### 总览对比
 
-| 应用模块 | Bézier | Catmull-Rom | B-Spline | 实际采用 |
-|---------|--------|-------------|----------|---------|
-| **车道线表示** | ❌ | ✅✅✅ | ⚠️ | **Catmull-Rom** |
-| **轨迹规划** | ⚠️ | ✅✅ | ✅✅✅ | **B-Spline** |
-| **路径跟踪** | ❌ | ✅✅✅ | ⚠️ | **Catmull-Rom** |
-| **地图插值** | ❌ | ✅✅ | ✅ | **都用** |
-| **动态避障** | ❌ | ⚠️ | ✅✅✅ | **B-Spline** |
-| **停车规划** | ✅ | ✅ | ✅✅ | **B-Spline** |
-| **UI可视化** | ✅✅✅ | ✅ | ⚠️ | **Bézier** |
+| 应用模块      | Bézier | Catmull-Rom | B-Spline | 实际采用            |
+| --------- | ------ | ----------- | -------- | --------------- |
+| **车道线表示** | ❌      | ✅✅✅         | ⚠️       | **Catmull-Rom** |
+| **轨迹规划**  | ⚠️     | ✅✅          | ✅✅✅      | **B-Spline**    |
+| **路径跟踪**  | ❌      | ✅✅✅         | ⚠️       | **Catmull-Rom** |
+| **地图插值**  | ❌      | ✅✅          | ✅        | **都用**          |
+| **动态避障**  | ❌      | ⚠️          | ✅✅✅      | **B-Spline**    |
+| **停车规划**  | ✅      | ✅           | ✅✅       | **B-Spline**    |
+| **UI可视化** | ✅✅✅    | ✅           | ⚠️       | **Bézier**      |
 
 ### 1. 车道线建图与定位
 
@@ -1839,6 +1903,7 @@ PersFormer检测 → rosbag存储 → SLAM读取 → 预处理 →
 **选择**: ✅ **Catmull-Rom**
 
 **原因**:
+
 ```python
 # 车道线检测 → 控制点提取 → Catmull-Rom拟合
 lane_points = detector.detect()  # 密集点云
@@ -1852,6 +1917,7 @@ lane_curve = CatmullRomSpline(ctrl_points)  # 插值曲线
 ```
 
 **实际应用**: 
+
 - Apollo HD Map
 - HERE HD Live Map
 - TomTom RoadDNA
@@ -1874,6 +1940,7 @@ smooth_lane = BSplineCurve(control_points)
 ```
 
 **行业实践**:
+
 - **特斯拉**: 使用多项式拟合(类似Catmull-Rom)
 - **Mobileye**: 三次多项式
 - **学术界**: B-Spline用于研究,实际产品用Catmull-Rom
@@ -1902,31 +1969,33 @@ def trajectory_optimization():
     # 1. C²连续 → jerk有界
     # 2. 凸包性质 → 碰撞检测简单
     # 3. 局部控制 → 实时优化可行
-    
+
     control_points = initial_guess()
     optimized_trajectory = bspline_optimization(control_points)
     return optimized_trajectory
 ```
 
 **实际系统**:
+
 - **Apollo**: 使用五次多项式和B-Spline组合
 - **Autoware**: EM Planner使用B-Spline
 - **学术**: TEB (Timed Elastic Band) 用B-Spline
 
 **代码示例**(伪代码):
+
 ```python
 # Apollo Planning模块
 class SplineTrajectoryGenerator:
     def generate(self, waypoints, constraints):
         # 1. 初始化B-Spline
         spline = QuinticBSpline(degree=5)
-        
+
         # 2. 优化控制点
         for iter in range(max_iter):
             cost = self.compute_cost(spline)  # jerk + collision
             gradient = self.compute_gradient(spline)
             spline.update_control_points(-lr * gradient)
-        
+
         return spline.sample_trajectory(dt=0.1)
 ```
 
@@ -1947,6 +2016,7 @@ smooth_path = optimize_bspline_path(raw_path,
 ```
 
 **行业实践**:
+
 - **ROS Navigation**: 默认使用B-Spline平滑
 - **Autoware**: Catmull-Rom用于快速平滑
 - **Apollo**: B-Spline优化
@@ -1964,7 +2034,7 @@ class MPCController:
     def control(self, current_state, reference_path):
         """
         reference_path: Catmull-Rom曲线
-        
+
         优势:
         1. 快速查询参考点 → O(1)复杂度
         2. 参数u ∈ [0,1] → 自然的"进度"表示
@@ -1972,18 +2042,19 @@ class MPCController:
         """
         # 找到最近参考点
         u = self.find_closest_parameter(current_state, reference_path)
-        
+
         # 前瞻N步
         for i in range(N):
             u_future = u + i * dt * velocity
             ref_point = reference_path.evaluate(u_future)
             ref_heading = reference_path.get_tangent(u_future)
             # ... MPC优化
-        
+
         return optimal_control
 ```
 
 **实际应用**:
+
 - **特斯拉**: Catmull-Rom用于参考线
 - **Waymo**: 内部使用类似样条曲线
 
@@ -1998,7 +2069,7 @@ def pure_pursuit(current_pos, path, lookahead_dist):
     u_current = path.find_closest_u(current_pos)
     u_lookahead = path.advance_by_distance(u_current, lookahead_dist)
     lookahead_point = path.evaluate(u_lookahead)
-    
+
     steering_angle = compute_steering(current_pos, lookahead_point)
     return steering_angle
 ```
@@ -2023,18 +2094,19 @@ def plan_parking_trajectory(start_pose, goal_pose, obstacles):
     # 初始化B-Spline
     initial_ctrl_pts = generate_initial_path(start_pose, goal_pose)
     spline = CubicBSpline(initial_ctrl_pts)
-    
+
     # 优化
     optimized_spline = optimize(
         spline,
         constraints=[kinematic, collision_free, smooth],
         objective=minimize_time
     )
-    
+
     return optimized_spline.sample()
 ```
 
 **实际系统**:
+
 - **Bosch**: B-Spline优化
 - **学术**: Hybrid A* + B-Spline后处理
 
@@ -2051,7 +2123,7 @@ def simple_parking_bezier(start, goal):
     P3 = goal
     P1 = start + offset_forward
     P2 = goal - offset_backward
-    
+
     bezier = BezierCurve([P0, P1, P2, P3])
     return bezier.sample(50)
 ```
@@ -2074,16 +2146,17 @@ class DynamicObstacleAvoidance:
         # 找到受影响的控制点
         affected_indices = self.find_affected_control_points(
             original_trajectory, new_obstacle)
-        
+
         # 只优化这些控制点
         for idx in affected_indices:
             new_pos = self.compute_avoidance_position(idx, new_obstacle)
             original_trajectory.update_control_point(idx, new_pos)
-        
+
         return original_trajectory  # 实时更新!
 ```
 
 **实际应用**:
+
 - **TEB Local Planner** (ROS): 使用B-Spline变种
 - **Elastic Band**: 动态调整B-Spline控制点
 
@@ -2114,6 +2187,7 @@ def offline_optimization(raw_centerlines):
 ```
 
 **行业实践**:
+
 - **HERE**: 多级LOD,低精度用Catmull-Rom,高精度用B-Spline
 - **TomTom**: 类似方案
 
@@ -2134,7 +2208,7 @@ def connect_lane_segments(segment1_end, segment2_start):
         segment2_start[0],
         segment2_start[1]
     ]
-    
+
     # 生成连接曲线
     connection = CatmullRomSpline(ctrl_pts)
     return connection
@@ -2157,15 +2231,16 @@ def visualize_predicted_path(path_points):
     """
     # 抽取4个关键点
     key_points = sample_uniform(path_points, n=4)
-    
+
     # 生成SVG路径
     svg_path = f"M {key_points[0]} C {key_points[1]}, " \
                f"{key_points[2]}, {key_points[3]}"
-    
+
     return svg_path
 ```
 
 **实际应用**:
+
 - **特斯拉可视化**: Bézier曲线
 - **车载HMI**: 大量使用Bézier
 - **Apollo Dreamview**: Bézier用于UI,B-Spline用于实际规划
@@ -2174,29 +2249,33 @@ def visualize_predicted_path(path_points):
 
 ### 总结: 选择指南
 
-| 需求 | 推荐方案 | 理由 |
-|------|---------|------|
-| 必须通过指定点 | **Catmull-Rom** | 插值性质 |
-| 最大平滑性 | **B-Spline** | C²连续 |
-| 实时性要求高 | **Catmull-Rom** | O(1)计算 |
-| 全局优化 | **B-Spline** | 数值稳定 |
-| 局部编辑 | **Catmull-Rom/B-Spline** | 局部性 |
-| UI绘图 | **Bézier** | 原生支持 |
-| 简单场景 | **Bézier** | 直观简单 |
-| SLAM/建图 | **Catmull-Rom** | 插值+局部性 |
-| 运动规划 | **B-Spline** | 平滑性 |
+| 需求      | 推荐方案                     | 理由     |
+| ------- | ------------------------ | ------ |
+| 必须通过指定点 | **Catmull-Rom**          | 插值性质   |
+| 最大平滑性   | **B-Spline**             | C²连续   |
+| 实时性要求高  | **Catmull-Rom**          | O(1)计算 |
+| 全局优化    | **B-Spline**             | 数值稳定   |
+| 局部编辑    | **Catmull-Rom/B-Spline** | 局部性    |
+| UI绘图    | **Bézier**               | 原生支持   |
+| 简单场景    | **Bézier**               | 直观简单   |
+| SLAM/建图 | **Catmull-Rom**          | 插值+局部性 |
+| 运动规划    | **B-Spline**             | 平滑性    |
 
 **实践建议**:
+
 1. **不要死板**: 混合使用多种方法
+   
    - 建图用Catmull-Rom
    - 规划用B-Spline
    - 可视化用Bézier
 
 2. **根据约束选择**:
+   
    - 硬约束(必须通过点) → Catmull-Rom
    - 软约束(尽量平滑) → B-Spline
 
 3. **性能vs质量权衡**:
+   
    - 实时系统 → Catmull-Rom
    - 离线优化 → B-Spline
 
@@ -2205,16 +2284,19 @@ def visualize_predicted_path(path_points):
 ## 代码示例
 
 ### 学术论文
+
 1. Bézier, P. (1962). "Numerical Control: Mathematics and Applications"
 2. Catmull, E. & Rom, R. (1974). "A Class of Local Interpolating Splines"
 3. de Boor, C. (1972). "On Calculating with B-Splines"
 
 ### 在线资源
+
 - [Primer on Bézier Curves](https://pomax.github.io/bezierinfo/)
 - [Catmull-Rom Splines in Computer Graphics](https://www.cs.cmu.edu/~462/projects/assn2/assn2/catmullRom.pdf)
 - [B-Spline Tutorial](https://pages.mtu.edu/~shene/COURSES/cs3621/NOTES/)
 
 ### 代码库
+
 - MonoLaneMapping: `misc/curve/catmull_rom.py`, `misc/curve/bspline.py`
 - Geomdl: https://github.com/orbingol/NURBS-Python
 - SciPy: `scipy.interpolate.CubicSpline`, `scipy.interpolate.splprep`
@@ -2227,6 +2309,7 @@ def visualize_predicted_path(path_points):
 **作者**: MonoLaneMapping项目组
 
 **更新日志**:
+
 - v2.0: 新增"控制点选取算法"和"自动驾驶应用场景"章节
 - v1.0: 初始版本,包含三种曲线的数学原理和实现对比  
-**作者**: MonoLaneMapping项目组
+  **作者**: MonoLaneMapping项目组
