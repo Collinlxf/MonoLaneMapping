@@ -22,15 +22,18 @@ def parameterization(pt_w, ctrl_pts_np, tau = 0.5, N = 4):
     u = pt1[3] + ratio * (pt2[3] - pt1[3])
     if u < 0 or u > 1:
         return None, None
-    u = u.item()
-    est_pt = spline.get_point(u)
-    error = np.linalg.norm(pt_w[:3] - est_pt)
+    u = u.item()                                #参数 ∈ [0, 1]，表示点在曲线上的位置
+    est_pt = spline.get_point(u)                # 曲线上的点
+    error = np.linalg.norm(pt_w[:3] - est_pt)   # 投影误差，点到曲线的距离 (用于验证关联质量)
 
     return u, error.item()
 
 class CatmullRomSpline:
     def __init__(self, ctrl_pts, tau = 0.5):
         # lower tau -> more sharp at control points
+        # self.ctrl_pts: 控制点 (4×3)
+        # self.M: 基础矩阵 (4×4)  
+        # self.tau: 张力参数 
         try:
             self.tau = cfg.lane_mapping.tau
         except:
@@ -46,6 +49,7 @@ class CatmullRomSpline:
     def get_M(self):
         return self.M
 
+    # 利用控制点通过Catmull-Rom插值算出来的曲线上的点 
     def get_points(self, num, return_knots = False):
         # four_ctrl_pts: 4xc
         u = np.linspace(0, 1, num)
