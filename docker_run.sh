@@ -4,8 +4,8 @@
 set -e
 
 DOCKER_NAME="monolane"
-WORKSPACE_DIR="/mnt/workspace-disk/lxf/github"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"  # 自动获取项目父目录
 
 # 颜色输出
 RED='\033[0;31m'
@@ -43,7 +43,7 @@ run_docker() {
         docker rm -f ${DOCKER_NAME}
     fi
     
-    docker run -it \
+    docker run -itd \
         --name ${DOCKER_NAME} \
         --privileged \
         --network host \
@@ -53,7 +53,7 @@ run_docker() {
         -e QT_X11_NO_MITSHM=1 \
         -w /workspace/MonoLaneMapping \
         ${DOCKER_NAME}:latest \
-        bash
+        bash -c "tail -f /dev/null"
 }
 
 # 进入已运行的容器
