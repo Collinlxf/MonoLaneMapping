@@ -10,9 +10,9 @@ from gtsam.symbol_shorthand import P
 import gtsam.utils.plot as gtsam_plot
 from typing import List, Optional
 from functools import partial
-import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 class CubicBSplineApproximator:
     # default four control points
@@ -238,7 +238,9 @@ class BSplineGridApproximator:
         ax.grid(which='major', alpha=0.5)
         ax.set_xlabel('X axis')
         ax.set_ylabel('Y axis')
-        plt.show()
+        # plt.show()  # 注释掉，避免在无GUI环境中导致退出
+        print("BSpline grid approximation plot ready (not displayed in headless mode)")
+
 
 
     def assign_points_to_grid(self, points):

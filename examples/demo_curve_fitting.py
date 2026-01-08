@@ -11,11 +11,14 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
 sys.path.append(ROOT_DIR)
 from misc.curve.bspline_approx import CubicBSplineApproximator, BSplineGridApproximator
 from misc.curve.catmull_rom import CatmullRomSplineList, CentripetalCatmullRomSpline
+import matplotlib
+matplotlib.use('Agg')  # 使用非交互式后端，避免在无GUI环境中出错
 import matplotlib.pyplot as plt
 
 def main():
     lane_pcd= o3d.io.read_point_cloud(os.path.join(ROOT_DIR, "examples/data/lane.pcd"))
     # 采用Open3D中的方法voxel_down_sample对数据进行降采样
+    # 车道线宽度一般在0.1m~0.2m之间，采样体素大小设置为0.1m，代码中的0.01适合于更精细的点云
     lane_pcd = lane_pcd.voxel_down_sample(voxel_size=0.01)
     lane_points = np.asarray(lane_pcd.points)
     # 人工预先选取的控制点
